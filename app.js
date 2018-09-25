@@ -69,25 +69,25 @@ server.post('/api/messages', connector.listen());
 * For samples and documentation, see: https://github.com/Microsoft/BotBuilder-Azure
 * ---------------------------------------------------------------------------------------- */
 
-var tableName = 'botdata';
-var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env['AzureWebJobsStorage']);
-var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient);
+//var tableName = 'botdata';
+//var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env['AzureWebJobsStorage']);
+//var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient);
 
 // Create your bot with a function to receive messages from the user
 // This default message handler is invoked if the user's utterance doesn't
 // match any intents handled by other dialogs.
-//var bot = new builder.UniversalBot(connector, function (session, args) {
-//    session.send('You reached the default message handler. You said \'%s\'.', session.message.text);
-//});
+var bot = new builder.UniversalBot(connector, function (session, args) {
+    session.send('You reached the default message handler. You said \'%s\'.', session.message.text);
+});
 
-bot.set('storage', tableStorage);
+//bot.set('storage', tableStorage);
 
 // Make sure you add code to validate these fields
 var luisAppId = process.env.LuisAppId;
 var luisAPIKey = process.env.LuisAPIKey;
 var luisAPIHostName = process.env.LuisAPIHostName || 'westus.api.cognitive.microsoft.com';
 
-const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v2.0/apps/' + luisAppId + '?subscription-key=' + luisAPIKey;
+const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v2.0/apps/' + '6b5fbce3-5748-45cf-947c-da94afd278e7' + '?subscription-key=' + 'f47209ecf3a241948de241297e55c555';
 
 // Create a recognizer that gets intents from LUIS, and add it to the bot
 var recognizer = new builder.LuisRecognizer(LuisModelUrl);
@@ -108,10 +108,10 @@ bot.dialog('ShowHotelsReviews',
     (session, args) => {
         // retrieve hotel name from matched entities
         var hotelEntity = builder.EntityRecognizer.findEntity(args.intent.entities, 'Hotel');
+        console.log(hotelEntity);
         if(hotelEntity){
             session.send('Looking for reviews of \'%s\'...', hotelEntity.entity);
-                Store.searchHotelReviews(hotelEntity.entity).then(
-                    (reviews)=> {
+                Store.searchHotelReviews(hotelEntity.entity).then((reviews)=> {
                 var message = new builder.Message().attachmentLayout(builder.AttachmentLayout.carousel).attachments(reviews.map(reviewAsAttachment));
                 session.endDialog(message);
                 }
@@ -120,7 +120,7 @@ bot.dialog('ShowHotelsReviews',
     }
 ).triggerAction({
     matches: 'ShowHotelsReviews'
-});
+})
 
 bot.dialog('SearchHotels',
     (session, args, next) => {
@@ -154,7 +154,7 @@ bot.dialog('SearchHotels',
         }
         session.send(message, destination);
         //Async search
-        Store.searchHotels(destination) .then(function (hotels) {
+        Store.searchHotels(destination).then(function (hotels) {
         // args
             session.send('I found %d hotels:', hotels.length); var message = new builder.Message().attachmentLayout(builder.AttachmentLayout.carousel) .attachments(hotels.map(hotelAsAttachment));
             session.send(message); 
@@ -167,7 +167,7 @@ bot.dialog('SearchHotels',
     onInterrupted: function (session) {
         session.send('Please provide a destination');
     }
-});
+})
 
 bot.dialog('HelpDialog',
     (session) => {
