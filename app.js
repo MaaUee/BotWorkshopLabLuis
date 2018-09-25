@@ -7,6 +7,7 @@ var builder = require('botbuilder');
 var botbuilder_azure = require("botbuilder-azure");
 var Store = require('./store');
 var spellService = require('./spell-service');
+require('dotenv-extended').load();
 
 // Setup Restify Server
 var server = restify.createServer();
@@ -20,24 +21,6 @@ var connector = new builder.ChatConnector({
     appPassword: process.env.MicrosoftAppPassword,
     openIdMetadata: process.env.BotOpenIdMetadata 
 });
-
-// Spell Check
-if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
-    bot.use({
-        botbuilder: function (session, next) {
-            spellService
-                .getCorrectedText(session.message.text)
-                .then(function (text) {
-                    session.message.text = text;
-                    next();
-                })
-                .catch(function (error) {
-                    console.error(error);
-                    next();
-                });
-        }
-    });
-}
 
 // Helpers
 function hotelAsAttachment(hotel) {
@@ -80,6 +63,24 @@ var bot = new builder.UniversalBot(connector, function (session, args) {
     session.send('You reached the default message handler. You said \'%s\'.', session.message.text);
 });
 
+// Spell Check
+if (process.env.IS_SPELL_CORRECTION_ENABLED === 'true') {
+    bot.use({
+        botbuilder: function (session, next) {
+            spellService
+                .getCorrectedText(session.message.text)
+                .then(function (text) {
+                    session.message.text = text;
+                    next();
+                })
+                .catch(function (error) {
+                    console.error(error);
+                    next();
+                });
+        }
+    });
+}
+
 //bot.set('storage', tableStorage);
 
 // Make sure you add code to validate these fields
@@ -87,8 +88,7 @@ var luisAppId = process.env.LuisAppId;
 var luisAPIKey = process.env.LuisAPIKey;
 var luisAPIHostName = process.env.LuisAPIHostName || 'westus.api.cognitive.microsoft.com';
 
-const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v2.0/apps/' + '6b5fbce3-5748-45cf-947c-da94afd278e7' + '?subscription-key=' + 'f47209ecf3a241948de241297e55c555';
-
+const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v2.0/apps/' + luisAppId + '?subscription-key=' + luisAPIKey;
 // Create a recognizer that gets intents from LUIS, and add it to the bot
 var recognizer = new builder.LuisRecognizer(LuisModelUrl);
 bot.recognizer(recognizer);
@@ -122,11 +122,11 @@ bot.dialog('ShowHotelsReviews',
     matches: 'ShowHotelsReviews'
 })
 
-bot.dialog('SearchHotels',
-    (session, args, next) => {
+bot.dialog('SearchHotels',[
+   function  (session, args, next){
         session.send('Welcome to the Hotels finder! We are analyzing your message: \'%s\'', session.message.text);
         // try extracting entities
-        var cityEntity =builder.EntityRecognizer.findEntity(args.intent.entities, 'builtin.geography.city');
+        var cityEntity =builder.EntityRecognizer.findEntity(args.intent.entities, 'Places.AbsoluteLocation');
         var airportEntity = builder.EntityRecognizer.findEntity(args.intent.entities,'AirportCode');
         if (cityEntity) {
             // city entity detected, continue to next step
@@ -143,7 +143,7 @@ bot.dialog('SearchHotels',
             builder.Prompts.text(session, 'Please enter your destination'); 
         }
     },
-    (session, results) => {
+    function (session, results) {
         var destination = results.response;
         var message = 'Looking for hotels';
         if (session.dialogData.searchType === 'airport') {
@@ -162,7 +162,7 @@ bot.dialog('SearchHotels',
             session.endDialog();
         });
     }
-).triggerAction({
+]).triggerAction({
     matches: 'SearchHotels',
     onInterrupted: function (session) {
         session.send('Please provide a destination');
